@@ -1,0 +1,35 @@
+{
+  "name": "cryptus",
+  "version": "0.1.0",
+  "description": "P2P Encrypted CLI Chat — local-first, end-to-end encrypted, no central server",
+  "type": "module",
+  "bin": {
+    "chat": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "node_modules/.bin/tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js"
+  },
+  "keywords": [
+    "p2p",
+    "encrypted",
+    "chat",
+    "cli",
+    "libp2p"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.3.0",
+    "@noble/curves": "^2.3.0",
+    "@noble/hashes": "^2.3.0",
+    "commander": "^15.0.0",
+    "hash-wasm": "^4.12.0",
+    "multiformats": "^14.0.5"
+  }
+}
