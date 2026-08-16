@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.*
+
+# Local data (never commit user keys or messages)
+~/.cryptus/
+
+# Obsidian vault / documentation (separate from the codebase)
+cryptus-docs/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
