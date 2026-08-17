@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
+import { contactsListCommand } from './commands/contacts.js';
 
 const program = new Command();
 
@@ -30,9 +31,7 @@ contacts
 contacts
   .command('list')
   .description('List all contacts')
-  .action(async () => {
-    console.log('[Phase 2] Listing contacts — not yet implemented');
-  });
+  .action(contactsListCommand);
 
 // ── talk ──────────────────────────────────────────────────────────────────────
 program
