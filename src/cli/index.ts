@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
 import { contactsListCommand } from './commands/contacts.js';
+import { contactsAddCommand, talkCommand } from './commands/network.js';
 
 const program = new Command();
 
@@ -24,9 +25,7 @@ const contacts = program
 contacts
   .command('add <name> <invite-code>')
   .description('Add a contact using their invite code')
-  .action(async (name: string, inviteCode: string) => {
-    console.log(`[Phase 3] Adding contact ${name} with code ${inviteCode} — not yet implemented`);
-  });
+  .action(contactsAddCommand);
 
 contacts
   .command('list')
@@ -37,9 +36,7 @@ contacts
 program
   .command('talk <peer>')
   .description('Start a chat session with a contact')
-  .action(async (peer: string) => {
-    console.log(`[Phase 3] Starting chat with ${peer} — not yet implemented`);
-  });
+  .action(talkCommand);
 
 // ── verify ────────────────────────────────────────────────────────────────────
 program
