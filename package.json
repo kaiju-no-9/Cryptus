@@ -31,6 +31,7 @@
     "@libp2p/mplex": "^12.0.29",
     "@libp2p/peer-id-factory": "^4.2.4",
     "@libp2p/tcp": "^11.0.26",
+    "@libp2p/upnp-nat": "^4.0.26",
     "@libp2p/yamux": "^8.0.1",
     "@multiformats/multiaddr": "^13.0.3",
     "@noble/ciphers": "^2.3.0",
@@ -42,6 +43,7 @@
     "it-pipe": "^3.0.1",
     "libp2p": "^3.3.8",
     "multiformats": "^14.0.5",
-    "uint8arrays": "^6.1.1"
+    "uint8arrays": "^6.1.1",
+    "werift": "^0.24.4"
   }
 }

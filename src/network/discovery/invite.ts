@@ -1,8 +1,11 @@
 import { base58btc } from 'multiformats/bases/base58';
+import type { ICECandidate } from '../ice/index.js';
 
 export interface InviteCode {
   peerId: string;
   addrs: string[];
+  /** ICE candidates gathered at time of code generation (optional, Phase 4+) */
+  iceCandidates?: ICECandidate[];
 }
 
 const PREFIX = 'chat1';
@@ -13,8 +16,12 @@ const PREFIX = 'chat1';
  *
  * The prefix makes codes easy to recognise and copy-paste.
  */
-export function encodeInvite(peerId: string, addrs: string[]): string {
-  const payload = JSON.stringify({ peerId, addrs });
+export function encodeInvite(
+  peerId: string,
+  addrs: string[],
+  iceCandidates?: ICECandidate[],
+): string {
+  const payload = JSON.stringify({ peerId, addrs, iceCandidates });
   const bytes = new TextEncoder().encode(payload);
   return PREFIX + base58btc.encode(bytes);
 }
@@ -55,7 +62,10 @@ export function decodeInvite(code: string): InviteCode {
 
   const p = parsed as Record<string, unknown>;
   return {
-    peerId: p['peerId'] as string,
-    addrs: p['addrs'] as string[],
+    peerId:         p['peerId'] as string,
+    addrs:          p['addrs'] as string[],
+    iceCandidates:  Array.isArray(p['iceCandidates'])
+                      ? (p['iceCandidates'] as ICECandidate[])
+                      : undefined,
   };
 }

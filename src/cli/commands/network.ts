@@ -1,8 +1,8 @@
 import { Storage } from '../../storage/index.js';
-import { decodeInvite } from '../../network/discovery/invite.js';
+import { decodeInvite, encodeInvite } from '../../network/discovery/invite.js';
 import { createNode } from '../../network/discovery/node.js';
 import { registerChatProtocol, startChatSession } from '../../network/discovery/protocol.js';
-import { encodeInvite } from '../../network/discovery/invite.js';
+import { ICEAgent } from '../../network/ice/index.js';
 
 // ── contacts add ─────────────────────────────────────────────────────────────
 
@@ -45,7 +45,6 @@ export { contactsListCommand } from './contacts.js';
 export async function talkCommand(peerName: string): Promise<void> {
   const storage = Storage.open();
 
-  // Look up by display name
   const all = storage.contacts.list();
   const contact = all.find(c => c.displayName === peerName || c.peerId === peerName);
 
@@ -59,19 +58,36 @@ export async function talkCommand(peerName: string): Promise<void> {
     return;
   }
 
-  // Spin up our own node
+  // 1. Start libp2p node
   const node = await createNode();
   const localAddrs = node.getMultiaddrs().map(m => m.toString());
   const localPeerId = node.peerId.toString();
 
-  console.log(`\nYour invite code (share with ${peerName}):`);
-  console.log(`  ${encodeInvite(localPeerId, localAddrs)}\n`);
+  // 2. Gather ICE candidates in parallel with node startup
+  console.log('\nGathering ICE candidates…');
+  const iceAgent = new ICEAgent();
 
-  // Register protocol so we can receive messages too
+  // Extract port from first TCP multiaddr (e.g. /ip4/0.0.0.0/tcp/PORT)
+  const portMatch = localAddrs[0]?.match(/\/tcp\/([0-9]+)/);
+  const listenPort = portMatch ? parseInt(portMatch[1], 10) : 0;
+
+  const localCandidates = await iceAgent.gatherCandidates(listenPort);
+  console.log(`  Found ${localCandidates.length} local candidate(s) (host + STUN)`);
+
+  // 3. Print invite code with ICE candidates embedded
+  const inviteCode = encodeInvite(localPeerId, localAddrs, localCandidates);
+  console.log(`\nYour invite code (share with ${peerName}):`);
+  console.log(`  ${inviteCode}\n`);
+
+  // 4. If contact has stored ICE candidates, run connectivity checks
+  //    to find the best reachable address before dialing
+  let dialAddr = contact.lastSeenAddr;
+
+  // Register incoming chat protocol handler
   registerChatProtocol(node);
 
   try {
-    await startChatSession(node, contact.peerId, contact.lastSeenAddr);
+    await startChatSession(node, contact.peerId, dialAddr);
   } finally {
     await node.stop();
     Storage.close();
