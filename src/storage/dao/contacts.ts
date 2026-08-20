@@ -76,6 +76,12 @@ export class ContactDAO {
   markVerified(peerId: string): void {
     this.markVerified_stmt.run(peerId);
   }
+
+  /** Update a contact's public key. Resets verification flag if key changes. */
+  updatePublicKey(peerId: string, publicKey: Uint8Array): void {
+    const db = (this as any).db;
+    db.prepare(`UPDATE contacts SET public_key = ?, fingerprint_verified = 0 WHERE peer_id = ?`).run(publicKey, peerId);
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

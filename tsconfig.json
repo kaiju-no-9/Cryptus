@@ -9,6 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "types": ["node"],
+    "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "declarationMap": true,

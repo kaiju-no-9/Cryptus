@@ -15,7 +15,7 @@ export async function contactsListCommand(): Promise<void> {
 
   for (const c of contacts) {
     const name      = (c.displayName ?? '(unnamed)').padEnd(20);
-    const verified  = (c.fingerprintVerified ? '✅  yes' : '⚠️  no ').padEnd(10);
+    const verified  = (c.fingerprintVerified ? '[V] yes' : '[U] no ').padEnd(10);
     const peerId    = c.peerId.padEnd(55);
     const lastSeen  = c.lastSeenAddr ?? 'never';
     console.log(`${name} ${verified} ${peerId} ${lastSeen}`);

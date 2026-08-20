@@ -14,14 +14,14 @@ export async function initCommand(): Promise<void> {
 
   const passphrase = await rl.question('Choose a passphrase to protect your local keys: ');
   if (!passphrase || passphrase.length < 8) {
-    console.error('❌  Passphrase must be at least 8 characters.');
+    console.error('✗  Passphrase must be at least 8 characters.');
     rl.close();
     return;
   }
 
   const confirm = await rl.question('Confirm passphrase: ');
   if (passphrase !== confirm) {
-    console.error('❌  Passphrases do not match.');
+    console.error('✗  Passphrases do not match.');
     rl.close();
     return;
   }
@@ -31,9 +31,9 @@ export async function initCommand(): Promise<void> {
   console.log('\nGenerating identity… (this takes a moment — Argon2id hashing your passphrase)');
   const identity = await createIdentity(passphrase);
 
-  console.log('\n✅  Identity created!');
+  console.log('\n✓  Identity created!');
   console.log(`Your peer ID: ${identity.peerId}`);
   console.log('\nShare your peer ID (or the invite code printed by `chat contacts add`) with');
   console.log('people you want to chat with.');
-  console.log('\n⚠️   Back up your identity now:  chat export --out my-backup.age');
+  console.log('\n[!] Back up your identity now:  chat export --out my-backup.age');
 }

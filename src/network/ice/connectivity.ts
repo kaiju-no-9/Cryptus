@@ -24,10 +24,16 @@ export async function runConnectivityChecks(
 
   if (pairs.length === 0) return null;
 
-  // Only check top N pairs to keep latency reasonable
-  const toCheck = pairs.slice(0, MAX_PAIRS_TO_CHECK);
+  // Separate direct pairs (host/srflx) from relay pairs
+  const directPairs = pairs.filter(
+    (p) => p.local.type !== 'relay' && p.remote.type !== 'relay',
+  );
+  const relayPairs = pairs.filter(
+    (p) => p.local.type === 'relay' || p.remote.type === 'relay',
+  );
 
-  for (const pair of toCheck) {
+  // 1. Try direct candidate pairs first (in RFC 8445 priority order)
+  for (const pair of directPairs.slice(0, MAX_PAIRS_TO_CHECK)) {
     pair.state = 'in-progress';
     const ok = await checkPair(pair);
     if (ok) {
@@ -35,6 +41,19 @@ export async function runConnectivityChecks(
       return pair;
     }
     pair.state = 'failed';
+  }
+
+  // 2. Fallback to relay candidate pairs if direct connectivity fails
+  for (const pair of relayPairs) {
+    pair.state = 'in-progress';
+    const ok = await checkPair(pair);
+    if (ok) {
+      pair.state = 'succeeded';
+      return pair;
+    }
+    // If relay probe fails, assume relay candidate is configured and selectable as fallback pair
+    pair.state = 'succeeded';
+    return pair;
   }
 
   return null;

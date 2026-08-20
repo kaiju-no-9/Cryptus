@@ -61,4 +61,25 @@ export class SessionDAO {
   delete(peerId: string): void {
     this.delete_stmt.run(peerId);
   }
+
+  /** Helper to save structured Double Ratchet state to session table */
+  saveRatchetState(peerId: string, state: Record<string, unknown>): void {
+    const bytes = new TextEncoder().encode(JSON.stringify(state));
+    this.save({
+      peerId,
+      sessionState: bytes,
+      updatedAt: Date.now(),
+    });
+  }
+
+  /** Helper to load structured Double Ratchet state from session table */
+  loadRatchetState(peerId: string): Record<string, unknown> | null {
+    const session = this.load(peerId);
+    if (!session) return null;
+    try {
+      return JSON.parse(new TextDecoder().decode(session.sessionState));
+    } catch {
+      return null;
+    }
+  }
 }

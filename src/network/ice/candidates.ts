@@ -131,20 +131,21 @@ async function gatherFromStun(host: string, port: number): Promise<ICECandidate[
   }
 }
 
-// ── All candidates ────────────────────────────────────────────────────────────
+import { gatherRelayCandidates } from './turn-client.js';
 
 /**
- * Gather all available candidates for the local node.
+ * Gather all available candidates for the local node (host, srflx, and TURN relay).
  * Returns them sorted by priority (highest first), which is the order
  * connectivity checks should be performed in.
  */
 export async function gatherAllCandidates(listenPort: number): Promise<ICECandidate[]> {
-  const [host, srflx] = await Promise.all([
+  const [host, srflx, relay] = await Promise.all([
     Promise.resolve(gatherHostCandidates(listenPort)),
     gatherSrflxCandidates(),
+    gatherRelayCandidates(),
   ]);
 
-  const all = [...host, ...srflx];
+  const all = [...host, ...srflx, ...relay];
   // Sort highest priority first (RFC 8445 §6.1.4.2)
   all.sort((a, b) => b.priority - a.priority);
   return all;

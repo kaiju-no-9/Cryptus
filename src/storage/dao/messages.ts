@@ -20,6 +20,7 @@ export interface Message {
 
 export class MessageDAO {
   private readonly insert_stmt: Database.Statement;
+  private readonly get_stmt: Database.Statement;
   private readonly getByPeer_stmt: Database.Statement;
   private readonly updateStatus_stmt: Database.Statement;
   private readonly getPending_stmt: Database.Statement;
@@ -29,6 +30,10 @@ export class MessageDAO {
     this.insert_stmt = db.prepare(`
       INSERT INTO messages (id, peer_id, direction, ciphertext, plaintext, status, created_at, delivered_at)
       VALUES (@id, @peerId, @direction, @ciphertext, @plaintext, @status, @createdAt, @deliveredAt)
+    `);
+
+    this.get_stmt = db.prepare(`
+      SELECT * FROM messages WHERE id = ?
     `);
 
     // Most recent messages first, capped for UI rendering
@@ -69,6 +74,12 @@ export class MessageDAO {
       createdAt:   msg.createdAt,
       deliveredAt: msg.deliveredAt,
     });
+  }
+
+  /** Get a single message by ID. Returns null if not found. */
+  get(id: string): Message | null {
+    const row = this.get_stmt.get(id) as Record<string, unknown> | undefined;
+    return row ? rowToMessage(row) : null;
   }
 
   /** Return the N most recent messages for a peer (default 50). */

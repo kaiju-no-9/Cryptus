@@ -3,13 +3,23 @@ import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
 import { contactsListCommand } from './commands/contacts.js';
 import { contactsAddCommand, talkCommand } from './commands/network.js';
+import { statusCommand } from './commands/status.js';
+import { verifyCommand } from './commands/verify.js';
+
+import { launchTUI } from '../tui/index.js';
 
 const program = new Command();
 
 program
   .name('chat')
   .description('Cryptus — P2P Encrypted CLI Chat')
-  .version('0.1.0');
+  .version('0.1.0')
+  .action(() => {
+    // If no subcommand is specified, launch Ink TUI
+    if (process.argv.length <= 2) {
+      launchTUI();
+    }
+  });
 
 // ── init ────────────────────────────────────────────────────────────────────
 program
@@ -42,33 +52,27 @@ program
 program
   .command('verify <peer>')
   .description("Verify a contact's identity fingerprint")
-  .action(async (peer: string) => {
-    console.log(`[Phase 7] Verifying ${peer} — not yet implemented`);
-  });
+  .action(verifyCommand);
 
 // ── status ────────────────────────────────────────────────────────────────────
 program
   .command('status <peer>')
   .description('Check delivery status of messages to a contact')
-  .action(async (peer: string) => {
-    console.log(`[Phase 6] Status for ${peer} — not yet implemented`);
-  });
+  .action(statusCommand);
+
+import { exportCommand, importCommand } from './commands/backup.js';
 
 // ── export ────────────────────────────────────────────────────────────────────
 program
   .command('export')
   .description('Export an encrypted backup of your identity and messages')
   .option('--out <file>', 'Output file path', 'cryptus-backup.age')
-  .action(async (opts: { out: string }) => {
-    console.log(`[Phase 10] Exporting to ${opts.out} — not yet implemented`);
-  });
+  .action(exportCommand);
 
 // ── import ────────────────────────────────────────────────────────────────────
 program
   .command('import <file>')
   .description('Import identity and messages from an encrypted backup')
-  .action(async (file: string) => {
-    console.log(`[Phase 10] Importing from ${file} — not yet implemented`);
-  });
+  .action(importCommand);
 
 program.parse();
