@@ -1,10 +1,10 @@
-# 🤝 Contributing to Cryptus
+# Contributing to Cryptus
 
-Thank you for helping build **Cryptus** — the zero-central-server P2P encrypted chat client.
+Thank you for contributing to **Cryptus** — the zero-central-server P2P encrypted chat client.
 
 ---
 
-## 🛠️ Development Setup
+## Development Setup
 
 ### Prerequisites
 
@@ -22,7 +22,7 @@ npm run build
 
 ---
 
-## 📂 Source Code Structure
+## Source Code Structure
 
 ```
 src/
@@ -43,7 +43,7 @@ src/
 
 ---
 
-## 🧪 Testing Guidelines
+## Testing Guidelines
 
 Verify changes before submitting pull requests:
 
@@ -52,13 +52,14 @@ Verify changes before submitting pull requests:
 npm run build
 
 # Run CLI verification commands
-npx tsx src/cli/index.ts --help
+node ./dist/cli/index.js --help
 ```
 
 ---
 
-## 📄 Code Style
+## Code Style
 
 - Use **TypeScript strict mode**.
 - Ensure clean module resolution (`NodeNext` imports with `.js` extensions).
 - Follow clean functional architecture and error-first design patterns.
+- Maintain minimal, text-forward terminal aesthetics (no emojis in code or output).
