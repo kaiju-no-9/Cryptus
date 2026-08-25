@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { Contact } from '../../storage/index.js';
 
@@ -16,6 +16,12 @@ export const ContactListView: React.FC<ContactListViewProps> = ({
   onAddContact,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useEffect(() => {
+    if (selectedIndex >= contacts.length && contacts.length > 0) {
+      setSelectedIndex(contacts.length - 1);
+    }
+  }, [contacts.length, selectedIndex]);
 
   useInput((input, key) => {
     if (key.upArrow || input === 'k') {
@@ -88,7 +94,7 @@ export const ContactListView: React.FC<ContactListViewProps> = ({
 
       <Box marginTop={2} borderStyle="round" borderColor="#555555" paddingX={1}>
         <Text dimColor>
-          [↑/↓] Navigate • [Enter] Chat • [v] Verify Safety Number • [a] Add Contact
+          [↑/↓] Navigate • [Enter] Chat • [v] Verify • [c] Copy Peer ID • [a] Add Contact
         </Text>
       </Box>
     </Box>

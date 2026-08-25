@@ -2,8 +2,9 @@ import { createLibp2p } from 'libp2p';
 import { tcp } from '@libp2p/tcp';
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@libp2p/yamux';
-import { generateKeyPair } from '@libp2p/crypto/keys';
+import { generateKeyPair, generateKeyPairFromSeed } from '@libp2p/crypto/keys';
 import type { Libp2p } from 'libp2p';
+import { loadIdentity } from '../../identity/index.js';
 
 export type { Libp2p };
 
@@ -15,13 +16,24 @@ export type { Libp2p };
  *   Security    → Noise Protocol Framework (XX handshake)
  *   Multiplexer → yamux
  *
- * If no port is specified, OS assigns a random available port.
+ * If a persistent identity exists (~/.cryptus/identity.json), it derives
+ * a stable Ed25519 keypair from the stored public key so the libp2p
+ * Peer ID remains consistent across sessions.
+ *
+ * Falls back to an ephemeral identity if `chat init` has not been run.
  */
 export async function createNode(port = 0): Promise<Libp2p> {
-  // Generate a fresh ephemeral Ed25519 identity for this session.
-  // Phase 1's keystore identity will be plumbed in once we wire
-  // loadPrivateKey → libp2p's privateKey option (Phase 3 wire-up step).
-  const privateKey = await generateKeyPair('Ed25519');
+  let privateKey;
+
+  try {
+    // Attempt to load the persistent identity and derive a stable
+    // libp2p keypair from it so the Peer ID never changes.
+    const identity = await loadIdentity();
+    privateKey = await generateKeyPairFromSeed('Ed25519', identity.publicKey);
+  } catch {
+    // No identity yet — fall back to ephemeral key (pre-init usage)
+    privateKey = await generateKeyPair('Ed25519');
+  }
 
   const node = await createLibp2p({
     privateKey,
@@ -36,3 +48,4 @@ export async function createNode(port = 0): Promise<Libp2p> {
   await node.start();
   return node;
 }
+

@@ -1,10 +1,61 @@
 import type { Libp2p } from 'libp2p';
 import type { Stream, Connection } from '@libp2p/interface';
-import { StreamMessageEvent } from '@libp2p/interface';
 import { Storage } from '../../storage/index.js';
 import { decodeFrame, encodeFrame, type ChatWireFrame } from '../../outbox/delivery.js';
 import { OutboxManager } from '../../outbox/queue.js';
 import { createInterface } from 'node:readline';
+
+// ── Stream writer wrapper ────────────────────────────────────────────────────
+
+/**
+ * Thin wrapper around a libp2p Stream's send/close to provide
+ * a uniform push/end interface for the OutboxManager.
+ */
+export interface StreamWriter {
+  push(data: Uint8Array): void;
+  end(): void;
+}
+
+function wrapStream(stream: Stream): StreamWriter {
+  return {
+    push(data: Uint8Array) {
+      stream.send(data);
+    },
+    end() {
+      void stream.close();
+    },
+  };
+}
+
+// ── Frame reader ─────────────────────────────────────────────────────────────
+
+/**
+ * Reads newline-delimited wire frames from a libp2p Stream.
+ * Uses the stream's built-in async iterator (MessageStream is AsyncIterable).
+ */
+async function readStream(
+  stream: Stream,
+  onFrame: (frame: any) => void,
+  onClose: () => void,
+): Promise<void> {
+  let buffer = '';
+  try {
+    for await (const chunk of stream) {
+      const bytes = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk.subarray());
+      buffer += new TextDecoder().decode(bytes);
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const frame = decodeFrame(line);
+          onFrame(frame);
+        } catch { /* skip malformed */ }
+      }
+    }
+  } catch { /* stream error */ }
+  onClose();
+}
 
 export const CHAT_PROTOCOL = '/cryptus/chat/1.0.0';
 
@@ -22,56 +73,42 @@ export function registerChatProtocol(node: Libp2p): void {
       const storage = Storage.open();
       const outbox = OutboxManager.getInstance();
 
+      const writer = wrapStream(stream);
+
       // Register stream with outbox to flush pending outbox messages
-      outbox.registerStream(remotePeerId, stream);
+      outbox.registerStream(remotePeerId, writer);
 
-      let buffer = '';
+      void readStream(
+        stream,
+        (frame: any) => {
+          if (frame.type === 'ack') {
+            // Remote peer confirmed receipt of message
+            outbox.onDeliveryAck(frame.messageId);
+          } else {
+            // Incoming chat message
+            const ts = new Date(frame.timestamp).toLocaleTimeString();
+            process.stdout.write(`\r[${ts}] ${frame.from.substring(0, 8)}…: ${frame.text}\n> `);
 
-      stream.addEventListener('message', (evt) => {
-        const data = (evt as StreamMessageEvent).data;
-        const bytes = data instanceof Uint8Array ? data : data.subarray();
-        buffer += new TextDecoder().decode(bytes);
+            storage.messages.insert({
+              id:          frame.id,
+              peerId:      remotePeerId,
+              direction:   'incoming',
+              ciphertext:  null,
+              plaintext:   frame.text,
+              status:      'delivered',
+              createdAt:   frame.timestamp,
+              deliveredAt: Date.now(),
+            });
 
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const frame = decodeFrame(line);
-
-            if (frame.type === 'ack') {
-              // Remote peer confirmed receipt of message
-              outbox.onDeliveryAck(frame.messageId);
-            } else {
-              // Incoming chat message
-              const ts = new Date(frame.timestamp).toLocaleTimeString();
-              process.stdout.write(`\r[${ts}] ${frame.from.substring(0, 8)}…: ${frame.text}\n> `);
-
-              storage.messages.insert({
-                id:          frame.id,
-                peerId:      remotePeerId,
-                direction:   'incoming',
-                ciphertext:  null,
-                plaintext:   frame.text,
-                status:      'delivered',
-                createdAt:   frame.timestamp,
-                deliveredAt: Date.now(),
-              });
-
-              // Send delivery ACK back to sender
-              outbox.sendAck(stream, frame.id, localPeerId);
-            }
-          } catch {
-            // Malformed frame — skip
+            // Send delivery ACK back to sender
+            outbox.sendAck(writer, frame.id, localPeerId);
           }
+        },
+        () => {
+          outbox.unregisterStream(remotePeerId);
+          console.log('\n[peer disconnected]');
         }
-      });
-
-      stream.addEventListener('close', () => {
-        outbox.unregisterStream(remotePeerId);
-        console.log('\n[peer disconnected]');
-      });
+      );
     },
   );
 }
@@ -95,51 +132,40 @@ export async function startChatSession(
   const connection = await node.dial(multiaddr(targetAddr));
   const stream: Stream = await connection.newStream(CHAT_PROTOCOL);
 
+  const writer = wrapStream(stream);
+
   // Register stream with outbox
-  outbox.registerStream(targetPeerId, stream);
+  outbox.registerStream(targetPeerId, writer);
   outbox.startBackgroundRetry(localPeerId, 5000);
 
   console.log('✅  Connected! Type messages and press Enter. Ctrl+C to quit.\n');
   process.stdout.write('> ');
 
-  let buffer = '';
-  stream.addEventListener('message', (evt) => {
-    const data = (evt as StreamMessageEvent).data;
-    const bytes = data instanceof Uint8Array ? data : data.subarray();
-    buffer += new TextDecoder().decode(bytes);
+  void readStream(
+    stream,
+    (frame: any) => {
+      if (frame.type === 'ack') {
+        outbox.onDeliveryAck(frame.messageId);
+      } else {
+        const ts = new Date(frame.timestamp).toLocaleTimeString();
+        process.stdout.write(`\r[${ts}] ${frame.from.substring(0, 8)}…: ${frame.text}\n> `);
 
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
+        storage.messages.insert({
+          id:          frame.id,
+          peerId:      targetPeerId,
+          direction:   'incoming',
+          ciphertext:  null,
+          plaintext:   frame.text,
+          status:      'delivered',
+          createdAt:   frame.timestamp,
+          deliveredAt: Date.now(),
+        });
 
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const frame = decodeFrame(line);
-
-        if (frame.type === 'ack') {
-          outbox.onDeliveryAck(frame.messageId);
-        } else {
-          const ts = new Date(frame.timestamp).toLocaleTimeString();
-          process.stdout.write(`\r[${ts}] ${frame.from.substring(0, 8)}…: ${frame.text}\n> `);
-
-          storage.messages.insert({
-            id:          frame.id,
-            peerId:      targetPeerId,
-            direction:   'incoming',
-            ciphertext:  null,
-            plaintext:   frame.text,
-            status:      'delivered',
-            createdAt:   frame.timestamp,
-            deliveredAt: Date.now(),
-          });
-
-          outbox.sendAck(stream, frame.id, localPeerId);
-        }
-      } catch {
-        // Skip
+        outbox.sendAck(writer, frame.id, localPeerId);
       }
-    }
-  });
+    },
+    () => {}
+  );
 
   const rl = createInterface({ input: process.stdin });
 

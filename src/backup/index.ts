@@ -8,11 +8,13 @@ import { Storage } from '../storage/index.js';
 
 const DATA_DIR = join(homedir(), '.cryptus');
 const KEYSTORE_PATH = join(DATA_DIR, 'keystore.json');
-const DB_PATH = join(DATA_DIR, 'data.db');
+const IDENTITY_PATH = join(DATA_DIR, 'identity.json');
+const DB_PATH = join(DATA_DIR, 'cryptus.db');
 
 interface BackupPayload {
   version: number;
   keystoreJson: string;
+  identityJson: string;
   dbBase64: string;
   timestamp: number;
 }
@@ -29,12 +31,14 @@ export async function exportBackup(passphrase: string, outputPath: string): Prom
   Storage.close();
 
   const keystoreJson = readFileSync(KEYSTORE_PATH, 'utf-8');
+  const identityJson = existsSync(IDENTITY_PATH) ? readFileSync(IDENTITY_PATH, 'utf-8') : '';
   const dbBytes = existsSync(DB_PATH) ? readFileSync(DB_PATH) : new Uint8Array(0);
   const dbBase64 = Buffer.from(dbBytes).toString('base64');
 
   const payload: BackupPayload = {
     version: 1,
     keystoreJson,
+    identityJson,
     dbBase64,
     timestamp: Date.now(),
   };
@@ -112,6 +116,9 @@ export async function importBackup(passphrase: string, inputPath: string): Promi
   // Restore keystore and database files
   Storage.close();
   writeFileSync(KEYSTORE_PATH, payload.keystoreJson, 'utf-8');
+  if (payload.identityJson) {
+    writeFileSync(IDENTITY_PATH, payload.identityJson, 'utf-8');
+  }
 
   if (payload.dbBase64) {
     const dbBytes = Buffer.from(payload.dbBase64, 'base64');

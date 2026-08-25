@@ -9,22 +9,17 @@ export interface TURNServerConfig {
   transport?: 'udp' | 'tcp' | 'tls';
 }
 
-export const DEFAULT_TURN_SERVERS: TURNServerConfig[] = [
-  {
-    host: 'relay.cryptus.local',
-    port: 3478,
-    username: 'cryptus',
-    credential: 'changeme',
-    transport: 'udp',
-  },
-  {
-    host: 'relay.cryptus.local',
-    port: 443,
-    username: 'cryptus',
-    credential: 'changeme',
-    transport: 'tls',
-  },
-];
+export const DEFAULT_TURN_SERVERS: TURNServerConfig[] = process.env.CRYPTUS_TURN_HOST
+  ? [
+      {
+        host: process.env.CRYPTUS_TURN_HOST,
+        port: Number(process.env.CRYPTUS_TURN_PORT) || 3478,
+        username: process.env.CRYPTUS_TURN_USER || '',
+        credential: process.env.CRYPTUS_TURN_PASS || '',
+        transport: (process.env.CRYPTUS_TURN_TRANSPORT as 'udp' | 'tcp' | 'tls') || 'udp',
+      },
+    ]
+  : [];
 
 const RELAY_PRIORITY = (2 ** 24) * 0 + (2 ** 8) * 65535 + (256 - 1); // type preference 0 for relay
 

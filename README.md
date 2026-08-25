@@ -14,7 +14,7 @@ Cryptus is a privacy-focused terminal messaging application where every peer run
 - **NAT Traversal & TURN Fallback**: Host, STUN, and TURN candidate gathering for connectivity behind firewalls.
 - **Offline Outbox Queue**: Unsent messages queue in local SQLite (`better-sqlite3`) and retry automatically with exponential backoff and jitter.
 - **Signal-Style Safety Numbers**: 60-digit deterministic fingerprint comparison and interactive verification (`chat verify`).
-- **Terminal User Interface (TUI)**: Codex CLI-styled interactive Ink terminal application with threaded message streams.
+- **Terminal User Interface (TUI)**: Interactive Ink terminal application with threaded message streams.
 - **Encrypted Backup & Restore**: `chat export` and `chat import` utilities bundling keystores and database into authenticated `.cryptus-backup` archives.
 
 ---

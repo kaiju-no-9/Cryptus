@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import { Header } from './components/Header.js';
 import { ContactListView } from './views/ContactListView.js';
 import { ChatView } from './views/ChatView.js';
 import { VerifyView } from './views/VerifyView.js';
+import { AddContactView } from './views/AddContactView.js';
 import { Storage, type Contact, type Message } from '../storage/index.js';
 import { loadIdentity } from '../identity/index.js';
 import { OutboxManager } from '../outbox/index.js';
+import { copyToClipboard } from './utils/clipboard.js';
 
-type ViewMode = 'contacts' | 'chat' | 'verify';
+type ViewMode = 'contacts' | 'chat' | 'verify' | 'addContact';
 
 export const App: React.FC = () => {
   const [view, setView] = useState<ViewMode>('contacts');
@@ -81,6 +83,19 @@ export const App: React.FC = () => {
     setView('contacts');
   };
 
+  useInput((input) => {
+    if (view === 'contacts' && (input === 'c' || input === 'C') && localPeerId) {
+      const ok = copyToClipboard(localPeerId);
+      setStatusMsg(ok ? '[✓] Peer ID copied to clipboard' : '[✗] Failed to copy');
+    }
+  });
+
+  useEffect(() => {
+    if (!statusMsg) return;
+    const timer = setTimeout(() => setStatusMsg(''), 5000);
+    return () => clearTimeout(timer);
+  }, [statusMsg]);
+
   return (
     <Box flexDirection="column" padding={1} width="100%">
       <Header peerId={localPeerId} viewName={view} />
@@ -96,7 +111,7 @@ export const App: React.FC = () => {
           contacts={contacts}
           onSelectContact={handleSelectContact}
           onVerifyContact={handleVerifyContact}
-          onAddContact={() => setStatusMsg('Use `chat contacts add <name> <code>` to add contacts.')}
+          onAddContact={() => setView('addContact')}
         />
       )}
 
@@ -114,6 +129,18 @@ export const App: React.FC = () => {
           contact={selectedContact}
           localPublicKey={localPublicKey}
           onConfirmVerify={handleConfirmVerify}
+          onBack={() => setView('contacts')}
+        />
+      )}
+
+      {view === 'addContact' && (
+        <AddContactView
+          onContactAdded={() => {
+            const storage = Storage.open();
+            setContacts(storage.contacts.list());
+            setStatusMsg('[✓] Contact added successfully!');
+            setView('contacts');
+          }}
           onBack={() => setView('contacts')}
         />
       )}

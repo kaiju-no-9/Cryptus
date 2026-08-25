@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Stream } from '@libp2p/interface';
+import type { StreamWriter } from '../network/discovery/protocol.js';
 import { Storage, type Message } from '../storage/index.js';
 import { encodeFrame, type ChatWireFrame, type ACKWireFrame } from './delivery.js';
 import { calculateDelay, DEFAULT_RETRY_POLICY, type RetryPolicy } from './retry.js';
@@ -8,7 +8,7 @@ export class OutboxManager {
   private static _instance: OutboxManager | null = null;
 
   /** Active streams mapped by target peer ID */
-  private activeStreams: Map<string, Stream> = new Map();
+  private activeStreams: Map<string, StreamWriter> = new Map();
 
   /** Per-peer retry attempt counters for backoff calculation */
   private retryAttempts: Map<string, number> = new Map();
@@ -26,8 +26,8 @@ export class OutboxManager {
   }
 
   /** Register an active libp2p stream for a peer. Automatically flushes pending messages. */
-  registerStream(peerId: string, stream: Stream): void {
-    this.activeStreams.set(peerId, stream);
+  registerStream(peerId: string, writer: StreamWriter): void {
+    this.activeStreams.set(peerId, writer);
     this.retryAttempts.set(peerId, 0); // reset backoff on connect
     void this.flush(peerId);
   }
@@ -60,16 +60,16 @@ export class OutboxManager {
     storage.messages.insert(msg);
 
     // Attempt immediate delivery if stream is open
-    const stream = this.activeStreams.get(peerId);
-    if (stream) {
-      void this.deliverMessage(msg, localPeerId, stream);
+    const writer = this.activeStreams.get(peerId);
+    if (writer) {
+      void this.deliverMessage(msg, localPeerId, writer);
     }
 
     return msg;
   }
 
   /** Deliver a single message over a stream and update status to 'sent'. */
-  async deliverMessage(msg: Message, localPeerId: string, stream: Stream): Promise<boolean> {
+  async deliverMessage(msg: Message, localPeerId: string, writer: StreamWriter): Promise<boolean> {
     const storage = Storage.open();
     try {
       const frame: ChatWireFrame = {
@@ -80,7 +80,7 @@ export class OutboxManager {
         timestamp: msg.createdAt,
       };
 
-      stream.send(encodeFrame(frame));
+      writer.push(encodeFrame(frame));
 
       // Update status to 'sent' (awaiting 'delivered' ACK from remote peer)
       storage.messages.updateStatus(msg.id, 'sent');
@@ -92,7 +92,7 @@ export class OutboxManager {
   }
 
   /** Send a delivery ACK back to a sender for a received message. */
-  sendAck(stream: Stream, messageId: string, localPeerId: string): void {
+  sendAck(writer: StreamWriter, messageId: string, localPeerId: string): void {
     try {
       const ackFrame: ACKWireFrame = {
         type: 'ack',
@@ -100,7 +100,7 @@ export class OutboxManager {
         from: localPeerId,
         timestamp: Date.now(),
       };
-      stream.send(encodeFrame(ackFrame));
+      writer.push(encodeFrame(ackFrame));
     } catch {
       // Best effort ACK
     }
@@ -114,14 +114,14 @@ export class OutboxManager {
 
   /** Flush all pending messages for a specific peer over an active stream. */
   async flush(peerId: string, localPeerId = ''): Promise<void> {
-    const stream = this.activeStreams.get(peerId);
-    if (!stream) return;
+    const writer = this.activeStreams.get(peerId);
+    if (!writer) return;
 
     const storage = Storage.open();
     const pending = storage.messages.getByPeer(peerId, 100).filter((m) => m.status === 'pending');
 
     for (const msg of pending) {
-      await this.deliverMessage(msg, localPeerId, stream);
+      await this.deliverMessage(msg, localPeerId, writer);
     }
   }
 
@@ -141,10 +141,10 @@ export class OutboxManager {
     }
 
     for (const [peerId, msgs] of grouped.entries()) {
-      const stream = this.activeStreams.get(peerId);
-      if (stream) {
+      const writer = this.activeStreams.get(peerId);
+      if (writer) {
         for (const msg of msgs) {
-          await this.deliverMessage(msg, localPeerId, stream);
+          await this.deliverMessage(msg, localPeerId, writer);
         }
       } else {
         // Peer offline — increment backoff attempt counter

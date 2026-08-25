@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { computeFingerprint, formatFingerprintDisplay } from '../../crypto/index.js';
 import type { Contact } from '../../storage/index.js';
+import { copyToClipboard } from '../utils/clipboard.js';
 
 interface VerifyViewProps {
   contact: Contact;
@@ -19,6 +20,7 @@ export const VerifyView: React.FC<VerifyViewProps> = ({
   const fingerprint = computeFingerprint(localPublicKey, contact.publicKey);
   const formatted = formatFingerprintDisplay(fingerprint);
   const name = contact.displayName ?? contact.peerId.substring(0, 16);
+  const [copied, setCopied] = useState(false);
 
   useInput((input, key) => {
     if (key.escape) {
@@ -29,6 +31,11 @@ export const VerifyView: React.FC<VerifyViewProps> = ({
     }
     if (input === 'n' || input === 'N') {
       onBack();
+    }
+    if (input === 'c' || input === 'C') {
+      const ok = copyToClipboard(fingerprint);
+      setCopied(ok);
+      setTimeout(() => setCopied(false), 2000);
     }
   });
 
@@ -42,7 +49,7 @@ export const VerifyView: React.FC<VerifyViewProps> = ({
 
       <Box marginBottom={1}>
         <Text dimColor>
-          Compare this 60-digit Safety Number with the number on {name}&apos;s device:
+          Compare this 60-digit Safety Number with the number on {name}{"'"}s device:
         </Text>
       </Box>
 
@@ -52,6 +59,12 @@ export const VerifyView: React.FC<VerifyViewProps> = ({
         </Text>
       </Box>
 
+      {copied && (
+        <Box>
+          <Text color="#22c55e">✓ Safety Number copied to clipboard</Text>
+        </Box>
+      )}
+
       <Box marginY={1}>
         <Text bold color={contact.fingerprintVerified ? "#22c55e" : "#eab308"}>
           {contact.fingerprintVerified ? '[V] Status: Verified' : '[U] Status: Unverified'}
@@ -60,7 +73,7 @@ export const VerifyView: React.FC<VerifyViewProps> = ({
 
       <Box marginTop={1}>
         <Text bold>
-          Does this match {name}&apos;s device? <Text color="#22c55e">[Y]es</Text>  <Text color="#ef4444">[N]o / Esc</Text>
+          Does this match {name}{"'"}s device? <Text color="#22c55e">[Y]es</Text>  <Text color="#3b82f6">[C]opy</Text>  <Text color="#ef4444">[N]o / Esc</Text>
         </Text>
       </Box>
     </Box>

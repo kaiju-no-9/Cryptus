@@ -51,7 +51,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <Text dimColor>No message history. Send a message below to start.</Text>
           </Box>
         ) : (
-          messages.slice(-10).map((msg) => (
+          messages.slice(-20).map((msg) => (
             <MessageBubble key={msg.id} message={msg} senderName={name} />
           ))
         )}
